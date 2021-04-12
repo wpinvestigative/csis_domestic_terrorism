@@ -2,15 +2,15 @@
 
 # About this story
 
-The Washington Post is making public the data used in the story **[Domestic terrorism attacks are soaring in America, led by far-right extremists](https://www.washingtonpost.com)**. It is a selection of 12 columns from a Center for Strategic & International Studies data set released publicly on April 12, 2021 and eight columns added by The Washington Post based on additional reporting and document gathering. Researchers may inquire with CSIS through [their website](https://www.csis.org/analysis/military-police-and-rise-terrorism-united-states) for the full CSIS data set.
+The Washington Post is making public the data used in the story **[Domestic terrorism attacks are soaring in America, led by far-right extremists](https://www.washingtonpost.com/investigations/interactive/2021/domestic-terrorism-data/)**. It is a selection of 12 columns from a Center for Strategic & International Studies data set released publicly on April 12, 2021 and eight columns added by The Washington Post based on additional reporting and document gathering. Researchers may inquire with CSIS through [their website](https://www.csis.org/analysis/military-police-and-rise-terrorism-united-states) for the full CSIS data set.
 
-* **[csis_wapo_domestic_terrorism.csv](https://github.com/wpinvestigative/csis_domestic_terrorism)**
+* **[csis_wapo_domestic_terrorism.csv](https://github.com/wpinvestigative/csis_domestic_terrorism/raw/main/data/clean_data/csis_wapo_domestic_terrorism.csv)**
 
 # About the data
 
 The database includes 980 incidents since 1994 that met CSIS’s definition of terrorism: an attack or plot involving a deliberate use or threat of violence to achieve political goals, create a broad psychological impact or change government policy.
 
-That definition excludes many violent events, including a number of incidents during nationwide unrest last year.
+hat definition excludes many violent events, including incidents during nationwide unrest last year, because CSIS analysts could not determine whether attackers had a political or ideological motive.
 
 Incidents do not have to be adjudicated in the court system to be included. Dozens of incidents have no identified perpetrator, but details about the attacks - including evidence of motive and the target - led to the case being included in the database.
 
@@ -53,7 +53,7 @@ For example, the extended review enabled the The Post to determine that at least
 
 # Folders of note in this repo
 
-* **[data/clean_data](data/clean_data)** - Cleaned up, public data from [CSIS]()) as well as additional categorization by The Washington Post.
+* **[data/clean_data](data/clean_data)** - Cleaned up, public data from [CSIS](https://csis-website-prod.s3.amazonaws.com/s3fs-public/publication/210412_Jones_Methodology.pdf?mG2pmLJmpc4OAKQdPDm8n.9cWaDW8Pj4) as well as additional categorization by The Washington Post.
 * **[data/raw_data](data/raw_data)** - Raw data from CSIS, as well as additional categorization by The Washington Post.
 * **[scripts/markdown](scripts/markdown)** - R Markdown files used to generate exploratory data analysis
 * **[scripts/analysis](scripts/analysis)** - Exploratory analysis scripts
@@ -65,4 +65,7 @@ For example, the extended review enabled the The Post to determine that at least
 * [Static maps](http://wpinvestigative.github.io/csis_domestic_terrorism/output/docs/03_map_groups.html) - Maps of where right-wing domestic terrorism incidents occurred since 1994.
 * [Exploratory map](http://wpinvestigative.github.io/csis_domestic_terrorism/output/docs/04_exploratory_map.html) - Exploratory map and table dashboard of right-wing plots and incidents since 2015.
 
+# Related
+
+* [Global Terrorism Database analysis (2018)](https://github.com/wpinvestigative/global_terrorism_database_analysis)
 
