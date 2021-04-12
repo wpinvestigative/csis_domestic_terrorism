@@ -1,0 +1,1121 @@
+---
+title: "Domestic terrorism analysis"
+author: Andrew Ba Tran
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    code_folding: hide
+
+---
+
+Please switch between tabs in each section to see the text compared to the charts and the summary tables.
+
+
+```{r setup, warning=F, message=F}
+
+packages <- c("tidyverse", "readxl", "janitor",
+              "geofacet", "forcats",  "scales",
+              "lubridate", "DT", "knitr")
+
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())), repos = "http://cran.us.r-project.org")  
+}
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(geofacet)
+library(forcats)
+library(scales)
+library(lubridate)
+library(DT)
+library(knitr)
+
+#df2 <- read_excel("../raw_data/CSIS_TNT_Terrorism_US_Jan1994-Aug2020.xlsx")
+#df2 <- read_excel("../raw_data/CSIS_TNT_Terrorism_US_Jan94-Jan21_Mar2021.xlsx")
+
+df2 <- read_csv("../../data/clean_data/csis_wapo_domestic_terrorism.csv")
+
+df2 <- clean_names(df2)
+
+df2 <- df2 %>% 
+  rename(tnt_orientation=orientation_csis,
+         year=year_csis,
+         state=state_csis,
+         month=month_csis,
+         vict_killed=vict_killed_csis,
+         weapon=weapon_csis,
+         target=target_csis,
+         lat=lat_csis,
+         long=long_csis,
+         target_category=victim_category,
+         target_specific1=victim_specific1,
+         target_specific2=victim_specific2,
+         mil_status=mil_status_csis,
+         le_status=le_status_csis,
+         perp_social_media=susp_social_media_use)
+
+```
+
+
+### a. Terror incidents, plots since '94 {.tabset}
+
+#### Text
+
+```{r total_since_1994}
+text_of <- df2 %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  count() %>% 
+  pull(n) 
+
+left_total <-  df2 %>% 
+  filter(tnt_orientation=="Violent Far-left") %>% 
+  count() %>% 
+  pull(n) 
+```
+
+There have been `r text_of` violent far-right incidents since 1994. (In contrast, there have been `r left_total` violent far-left incidents since then.)
+
+In 2020, there were 73 violent far-right attacks in the United States– the most since recorded by CSIS since 1994. The previous high was 49 in 2017. 
+
+In January 2021, CSIS documented 11 violent far-right attacks, including the Jan. 6 insurrection at the Capitol. That is the highest number for any January in the CSIS database and among the top four for any month. 
+
+#### Chart
+
+```{r total_since_1994_chart, fig.width=7, fig.height=3}
+df2 %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  count(year) %>% 
+  ggplot(aes(x=year, y=n)) +
+  geom_col() +
+  theme_minimal() +
+  labs(x="", y="incidents",
+       title="Violent Far-right incidents since 1994",
+       subtitle="Data: CSIS")
+```
+
+#### Data
+
+```{r total_since_1994_data}
+df2 %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  count(year) %>% 
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "total_since_1994_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+
+
+```
+
+
+### b. Proportion of incidents  {.tabset}
+
+ 
+#### Text
+
+```{r proportion}
+df_summary <- df2 %>% 
+  count(year, tnt_orientation) %>% 
+  group_by(year) %>% 
+  mutate(percent=round(n/sum(n, na.rm=T)*100))
+
+more_than50 <- df_summary %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  filter(percent>50) %>% 
+  ungroup () %>% 
+  count() %>% 
+  pull(n)
+
+max_year <- df_summary %>% 
+  ungroup() %>% 
+  filter(year==max(year)) %>% 
+  pull(year) %>% unique()
+
+min_year <- df_summary %>% 
+  ungroup() %>% 
+  filter(year==min(year)) %>% 
+  pull(year) %>% unique()
+
+total_years <- max_year-min_year
+
+ratio50 <- round(more_than50/total_years*100,1)
+```
+
+Incidents involving right wing extremists made up more than half the attacks of all categories in 17 out of 27 years, almost two out of three years.  
+ 
+In recent years, right-wing incidents made up the majority of all domestic terror incidents. There have been 267 right wing attacks and plots since 2015. 
+
+#### Chart
+
+```{r proportion_chart, fig.width=7, fig.height=3}
+df_summary <- df2 %>% 
+  count(year, tnt_orientation) %>% 
+  group_by(year) %>% 
+  mutate(percent=round(n/sum(n, na.rm=T)*100))
+
+# How many per year?
+df_summary %>% 
+  rename(Group=tnt_orientation) %>% 
+  ggplot(aes(x=year, y=percent, fill=Group)) +
+  geom_bar(position="stack", stat="identity") +
+  theme_minimal() +
+  labs(x="", title="Percent of incidents by year", 
+       caption="Data: CSIS")
+```
+
+#### Data
+
+```{r proportion_data}
+df_summary %>% 
+  rename(Group=tnt_orientation, incidents=n) %>% 
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "proportion_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+### c. Fatalities {.tabset}
+
+#### Text
+
+```{r vict_killed, warning=F, message=F}
+#fatalities
+#injuries
+#vict_killed
+df_summary <- df2 %>% 
+  group_by(year, tnt_orientation) %>% 
+  #group_by(tnt_orientation) %>% 
+  summarize(vict_killed=sum(vict_killed, na.rm=T)) %>%
+  group_by(year) %>% 
+  mutate(percent=round(vict_killed/sum(vict_killed, na.rm=T)*100))
+  
+  #mutate(percent=round(n/sum(n, na.rm=T)*100))
+
+more_than50 <- df_summary %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  filter(percent>50) %>% 
+  ungroup () %>% 
+  count() %>% 
+  pull(n)
+
+max_year <- df_summary %>% 
+  ungroup() %>% 
+  filter(year==max(year)) %>% 
+  pull(year) %>% unique()
+
+min_year <- df_summary %>% 
+  ungroup() %>% 
+  filter(year==min(year)) %>% 
+  pull(year) %>% unique()
+
+total_years <- max_year-min_year
+
+ratio50 <- round(more_than50/total_years*100,1)
+```
+
+There have been 329 fatalities since 1994 from right-wing attacks compared to the 31 from left-wing attacks. 
+ 
+Fatalities occurred in a total 21 years in the database. In 14 of the years when a fatality was recorded, the fatality was the result of right wing attacks.  
+ 
+Islamic religious terrorists on 911 caused the largest number of terror-related fatalities on American soil between 1994 and January 2021. 
+ 
+But in any year, right-wing attackers were more likely to cause more deaths than any other category of domestic terrorism. 
+ 
+
+#### Chart
+
+```{r vict_killed_chart, warning=F, message=F, fig.width=7, fig.height=3}
+df_summary %>% 
+  rename(Group=tnt_orientation) %>% 
+  ggplot(aes(x=year, y=percent, fill=Group)) +
+  geom_bar(position="stack", stat="identity") +
+  theme_minimal() +
+  labs(x="", title="Percent of fatalities killed by year", 
+       caption="Data: CSIS")
+```
+
+#### Data
+
+```{r vict_killed_data}
+df_summary %>% 
+  rename(Group=tnt_orientation) %>% 
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "vict_killed_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+ 
+### d. Targets {.tabset}
+ 
+#### Text
+
+```{r targets}
+targets <- df2 %>% count(tnt_orientation, target) %>% 
+  filter(tnt_orientation=="Violent Far-right" | tnt_orientation=="Violent Far-left") %>% 
+  pivot_wider(names_from="target", values_from="n") %>% 
+  pivot_longer(cols=2:13, names_to="target", values_to="attacks") %>% 
+  rename(Group=tnt_orientation) %>% 
+  group_by(Group) %>% 
+  mutate(percent=round(attacks/sum(attacks, na.rm=T)*100))
+#type_target 
+```
+
+**This is based on CSIS designations**
+
+Most of these left-wing attacks targeted property associated with animal research, farming, or construction and were claimed by the Animal Liberation Front or the Earth Liberation Front.
+
+There are three broad types of right-wing terrorist individuals and networks in the United States: white
+supremacists, anti-government extremists, and incels. Right wing attack increasingly focus on individuals and religious institutions, including black churches, synagogues etc.
+ 
+#### Chart
+
+```{r targets_chart, warning=F, message=F, fig.width=7, fig.height=5}
+ggplot(targets) +
+  geom_col(aes(x=attacks, y=fct_reorder(target, attacks, na.rm=T), 
+               fill=Group, group=Group),position="dodge") +
+  scale_fill_manual(values = c("lightslategray", "burlywood")) +
+  #scale_color_manual(values = rev(cols))+
+  labs(y="Target", x="Incidents", title="Attacks and plots since 1994",
+       caption="Data: CSIS") +
+  theme_minimal()  +
+    theme(legend.position="top") 
+```
+
+#### Data
+
+```{r targets_data}
+targets %>% datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "targets_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+ 
+### e. Targets over time {.tabset}
+ 
+#### Text
+
+```{r targets_time}
+targets_year <- df2 %>% count(tnt_orientation, year, target) %>% 
+  filter(tnt_orientation=="Violent Far-right" | tnt_orientation=="Violent Far-left") %>% 
+  pivot_wider(names_from="target", values_from="n") %>% 
+  pivot_longer(cols=3:14, names_to="target", values_to="attacks") %>% 
+  rename(Group=tnt_orientation)
+
+#type_target 
+```
+
+Violent acts from the far-left in the early 2000s focused on businesses. 
+ 
+Then in 2015, right wing attacks began focusing on individuals and churches, synagogues, mosques, and other religious institutions, as well as private individuals. 
+ 
+In 2019, left-wing and right-wing violence saw the most incidents against government, military, and police targets (between 15 and 20). The following year, left-wing violence against those targets dropped to just …. while right-wing violence just dropped to 10. 
+ 
+In 2020, demonstrators became the largest targeted group among right-wing incidents. Nearly 25 incidents– the most of any targeted groups since 1994. 
+
+*This is based on CSIS designations*
+
+#### Chart
+
+```{r targets_time_chart, warning=F, message=F, fig.width=7, fig.height=6}
+ggplot(targets_year) +
+  geom_col(aes(x=year, y=attacks, 
+               fill=Group, group=Group),position="dodge") +
+  facet_wrap(~target, ncol=3) +
+  scale_fill_manual(values = c("lightslategray", "burlywood")) +
+  #scale_color_manual(values = rev(cols))+
+  labs(y="Incidents", x="", title="Targets of attacks since 1994",
+       caption="Data: CSIS") +
+  theme_minimal() +
+    theme(legend.position="top") 
+```
+
+#### Data
+
+```{r targets_time_data}
+targets_year %>% datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "targets_time_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+ 
+### f. Types of Far Right Extremism {.tabset}
+
+#### Text
+
+```{r types_of_far_right, warning=F, message=F}
+#ideology_subtype
+#type_extremism
+#
+ideologies1 <- df2 %>% 
+  #filter(!is.na(ideology_subtype)) %>% 
+  filter(year>2014) %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  select(year, month, extremism_type=type_extremism_1, vict_killed) 
+
+ideologies2 <- df2 %>% 
+  #filter(!is.na(ideology_subtype)) %>% 
+  filter(year>2014) %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  select(year, month, extremism_type=type_extremism_2, vict_killed) 
+
+ideologies <- rbind(ideologies1, ideologies2) %>% 
+  filter(!is.na(extremism_type)) %>% 
+  group_by(extremism_type) %>% 
+  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T)) 
+
+
+ideologies_month <- rbind(ideologies1, ideologies2) %>% 
+  filter(!is.na(extremism_type)) %>% 
+  group_by(year, month, extremism_type) %>% 
+  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T))
+
+ideologies_year <- rbind(ideologies1, ideologies2) %>% 
+  filter(!is.na(extremism_type)) %>% 
+  group_by(year, month, extremism_type) %>% 
+  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T))
+```
+
+Attacks and plots involving white supremacist accounted for the most extreme right-wing terror incidents since 2015. 
+
+In all, there were 72 incidents and 37 deaths from white supremacist attacks. Another way to put it is more than 1 out of 4 incidents were white supremacist attacks and about 40% all deaths tied to right-wing violence came from white supremacists.
+
+The most-popular type of right-wing incidents:
+
+* white supremacist: 72 incidents and 37 deaths (27% and 41%)
+* anti-muslim: 43 incidents - 16%
+* anti government: 43 incidents - 13%
+* racist: 10.9 - 11%
+
+Right-wing incidents with the most fatalities:
+
+* anti-immigrant: 27 - 30%
+* incel: 14 - 15%
+* racist: 10.9 - 11%
+
+
+Other things to note:
+
+* Incel-related incidents made up just over 3 percent of all violent right-wing incidents but made up 15 percent of all deaths.
+* Anti immigrant-related incidents consisted of nearly 6 percent of all violent right-wing incidents but made up about 30 percent of all deaths.
+
+
+*Analysis based on Post designations*
+
+#### Chart
+
+```{r types_of_far_right_chart, fig.width=7, fig.height=5}
+ideologies %>%
+  pivot_longer(cols=2:3, names_to="type", values_to="values") %>% 
+  ggplot(aes(y=extremism_type, x=values)) +
+  geom_col() +
+  facet_wrap(~type, ncol=2, scales="free") +
+  theme_minimal() +
+  labs(title="Right-wing extremism incidents and deaths since 2015",
+       y="", x="") 
+```
+
+#### Data
+
+```{r types_of_far_right_data}
+inc_kill <- df2 %>% 
+  #filter(!is.na(ideology_subtype)) %>% 
+  filter(year>2014) %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  summarize(incidents=n(),
+            killed=sum(vict_killed, na.rm=T))
+
+incidents_total <- inc_kill %>% 
+  pull(incidents)
+
+killed_total <- inc_kill %>% 
+  pull(killed)
+
+
+ideologies %>% 
+  ungroup() %>% 
+  mutate(`incidents %`=round(incidents/incidents_total*100,1),
+         `killed %`=round(killed/killed_total*100,1)) %>% 
+  arrange(desc(`incidents %`)) %>% 
+           datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "types_of_far_right_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+
+ 
+### g. Annual types of FRE incidents {.tabset}
+
+#### Text
+
+```{r types_of_far_right_year, warning=F, message=F}
+#ideology_subtype
+#type_extremism
+#
+ideologies_year <- rbind(ideologies1, ideologies2) %>% 
+  filter(!is.na(extremism_type)) %>% 
+  group_by(year, extremism_type) %>% 
+  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T))
+```
+
+In 2020, right-wing attacks against Black Lives Matters protesters outnumbered any other target in a given year (26). The next highest year was in 2017 with white supremacist-related attacks (21) and in 2015 against muslims (16).
+
+Anti muslim attacks started high at 16 in 2015 but has declined every year since and since disappeared in 2020 and 2021.
+
+Since 2019, attacks and plots rising year over year have been driven by:   
+
+* conspiracy theorists,
+* anti covid lockdowns
+* anti police
+* incels
+* white supremacists
+
+#### Chart
+
+```{r types_of_far_right_chart_year, warning=F, message=F, fig.width=7, fig.height=6}
+ideologies_year %>%
+  #pivot_longer(cols=2:3, names_to="type", values_to="values") %>% 
+  ggplot(aes(x=year, y=incidents)) +
+  geom_col() +
+  facet_wrap(~extremism_type, ncol=3) +
+  theme_minimal() +
+  labs(title="Right-wing extremism incidents by type since 2015",
+       y="", x="") 
+```
+
+#### Data
+
+```{r types_of_far_right_year_data}
+ideologies_year %>% 
+           datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "types_of_far_right_year_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+
+ 
+### h. Monthly FRE incidents in 2020 {.tabset}
+
+#### Text
+
+```{r types_of_far_right_month, warning=F, message=F}
+#ideology_subtype
+#type_extremism
+#
+ideologies_month <- rbind(ideologies1, ideologies2) %>% 
+  filter(!is.na(extremism_type)) %>% 
+  filter(year>2019) %>% 
+  group_by(year, month, extremism_type) %>% 
+  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T)) %>% 
+  mutate(date=ymd(paste0(year, "/", month, "/1")))
+```
+
+Looking specifically at 2020 and 2021, the majority of attacks were against Black Lives Matters demonstrators with the largest spike in June at the same time when protestors across the country were most active. 
+
+Anti-government and anti-police attacks began in May, following widespread covid-19 lockdowns by the government. Anti-government and Stop the Steal violence began peaking in October of 2020 clmbing to their highest points in January 2021. 
+
+
+#### Chart
+
+```{r types_of_far_right_chart_month, warning=F, message=F, fig.width=7, fig.height=7}
+ideologies_month %>%
+  #pivot_longer(cols=2:3, names_to="type", values_to="values") %>% 
+  ggplot(aes(x=date, y=incidents)) +
+  geom_col() +
+  facet_wrap(~extremism_type, ncol=2) +
+  theme_minimal() +
+  labs(title="Monthly right-wing extremism incidents by type in 2020 and 2021",
+       y="", x="") 
+```
+
+#### Data
+
+```{r types_of_far_right_month_data}
+ideologies_month %>% 
+           datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "types_of_far_right_month_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+### i.  Fatalities and targets {.tabset}
+
+
+#### Text
+
+```{r victims, warning=F, message=F}
+victims1 <- df2 %>% 
+  #filter(!is.na(ideology_subtype)) %>% 
+  filter(year>2014) %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  #mutate(target1 = paste0(target_category, "-", target_specific1)) %>% 
+  #mutate(target2 = paste0(target_category, "-", target_specific2)) %>% 
+  #select(year, month, target_type=target1, vict_killed) 
+  select(year, month, target_category, target_specified=target_specific1, vict_killed)
+
+victims2 <- df2 %>% 
+  #filter(!is.na(ideology_subtype)) %>% 
+  filter(year>2014) %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  filter(!is.na(target_specific1)) %>% 
+  #mutate(target1 = paste0(target_category, "-", target_specific1)) %>% 
+  #mutate(target2 = paste0(target_category, "-", target_specific2)) %>% 
+  #select(year, month, target_type=target2, vict_killed) 
+  select(year, month, target_category, target_specified=target_specific2, vict_killed) %>% 
+  filter(!is.na(target_specified))
+
+victims <- rbind(victims1, victims2) %>% 
+  #filter(!is.na(target_type)) %>% 
+  #group_by(target_type) %>% 
+  
+  group_by(target_category, target_specified) %>% 
+  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T)) #%>% 
+  #mutate(target_type=gsub("-NA", "", target_type))
+
+
+#victims_month <- rbind(ideologies1, ideologies2) %>% 
+#  filter(!is.na(extremism_type)) %>% 
+#  group_by(year, month, extremism_type) %>% 
+#  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T))
+
+#ideologies_year <- rbind(ideologies1, ideologies2) %>% 
+#  filter(!is.na(extremism_type)) %>% 
+#  group_by(year, month, extremism_type) %>% 
+#  summarize(incidents=n(), killed=sum(vict_killed, na.rm=T))
+# df2 %>% 
+#   filter(year>2014) %>% 
+#   filter(tnt_orientation=="Violent Far-right") %>% 
+#   mutate(race_victim=gsub("black men protesters", "Black", race_victim)) %>% 
+#   mutate(race_victim=gsub("black protesters", "Black", race_victim)) %>% 
+#   mutate(race_victim=gsub("Latina", "latino", race_victim)) %>% 
+#   mutate(race_victim=gsub("white black asian", "multiple races", race_victim)) %>% 
+#   mutate(race_victim=case_when(
+#     grepl(",", race_victim) ~ "multiple races",
+#     TRUE ~ race_victim)) %>% 
+#   mutate(race_victim=case_when(
+#     grepl(" and ", race_victim) ~ "multiple races",
+#     TRUE ~ race_victim)) %>% 
+#   mutate(race_victim=str_to_title(race_victim)) %>% 
+#   count(race_victim) %>% 
+#   arrange(desc(n)) %>% 
+#   kable()
+#race_victims
+#type_target
+
+
+```
+
+Since 2015, the most frequent targets of right-wing violence, the targets accounting for the most fatalities are social justice and Black Lives Matters demonstrators. Black and muslim individuals account for the next most common targets. 
+
+Among buildings that were attacked by right-wing extremists, abortion clinics and government institutions were hit the most often.
+
+*Analysis based on our designations*
+
+#### Chart
+
+```{r victims_chart, fig.width=7, fig.height=12}
+ggplot(victims, aes(x=incidents, y=target_specified)) +
+  geom_col() +
+  facet_wrap(~target_category, ncol=2) +
+  theme_minimal() +
+  labs(title="Fatalities and targets of right-wing violence since 2015",
+       y="", x="", caption="Data: CSIS")
+```
+
+#### Data
+
+```{r victims_data}
+victims %>% datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "victims_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+
+### j. Weapons  {.tabset}
+
+#### Text
+
+```{r weapons, warning=F, message=F}
+weapons <- df2 %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  count(year, weapon) 
+```
+
+Firearms, explosives and incendiaries were used in right-wing attacks often since 1994 (a high of 32 in 1995) and fell and leveled off at about 6 times per year in the 2000s. But that started climbing again starting in 2015. 
+
+Firearms use also climbed until reaching a high point in 2020.
+
+Vehicles were used in 11 attacks in 2020, a recent development. 
+
+#### Chart
+
+```{r weapons_chart, fig.width=7, fig.height=6}
+
+ggplot(weapons) +
+  geom_col(aes(x=year, y=n)) +
+  facet_wrap(~weapon) +
+  labs(y="Target", x="Incidents", title="Attacks since 1994") +
+  theme_minimal()
+```
+
+#### Data
+
+```{r weapons_data}
+weapons %>% datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "weapons_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+
+ 
+### k. Former police or military {.tabset}
+
+#### Text
+
+```{r frmr_mil}
+
+
+po_mil <- df2 %>% 
+  filter(year>2014) %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  mutate(mil_vet=case_when(
+    mil_status=="Active" ~ "military-active/reserve",
+    mil_status=="Reserve"~ "military-active/reserve",
+    grepl("Veteran", mil_status) ~ "military-veteran",
+    grepl("Reserve, Veteran", mil_status) ~ "military-veteran",
+    le_status=="Active" ~ "law enforcement-active",
+    le_status=="Former" ~ "law enforcement-former",
+    TRUE ~ NA_character_
+  )) %>% 
+  count(mil_vet)
+
+lea <- po_mil %>% 
+  filter(mil_vet=="law enforcement-active") %>% 
+  pull(n)
+
+lef <- po_mil %>% 
+  filter(mil_vet=="law enforement-former") %>% 
+  pull(n)
+
+if (length(lef)==0) { lef <- 0}
+
+mar <- po_mil %>% 
+  filter(mil_vet=="military-active/reserve") %>% 
+  pull(n)
+
+mv <- po_mil %>% 
+  filter(mil_vet=="military-veteran") %>% 
+  pull(n)
+
+#le
+#mil
+#military_vet
+
+
+po_mil_annual <- df2 %>% 
+  filter(year>2014) %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+  mutate(mil_vet=case_when(
+    mil_status=="Active" ~ "military-active/reserve",
+    mil_status=="Reserve"~ "military-active/reserve",
+    grepl("Veteran", mil_status) ~ "military-veteran",
+    grepl("Reserve, Veteran", mil_status) ~ "military-veteran",
+    le_status=="Active" ~ "law enforcement-active",
+    le_status=="Former" ~ "law enforcement-former",
+    TRUE ~ NA_character_
+  )) %>% 
+  count(year, mil_vet)
+```
+
+Since 2015, military veterans or law enforcement have been involved in `r mv` right-wing violent attacks.
+
+Active during and reserve military duty have been part of `r mar` attacks.
+
+To a lesser degree, a total of `r lea+lef` former and active law enforcement officers have participated in attacks.
+
+2020 saw the most attacks from suspects who were in active or reserve military. 
+
+#### Chart
+
+```{r frmr_mil_chart, fig.width=7, fig.height=5}
+po_mil_annual %>% 
+  filter(!is.na(mil_vet)) %>% 
+  ggplot(aes(x=year, y=n)) +
+  geom_col() +
+  theme_minimal() +
+  facet_wrap(~mil_vet)
+```
+
+#### Data
+
+```{r frmr_mil_data}
+po_mil_annual %>% 
+  filter(!is.na(mil_vet)) %>% 
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "frmr_mil_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+
+ 
+ 
+### l. Police targets  {.tabset}
+
+
+#### Police
+
+```{r police}
+cops <- df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target_specific1 == "police" | target_specific2 == "police")
+```
+
+Police have been a target of right-wing violence `r nrow(cops)` times since 2015.
+
+Attacks didn't begin until 2017 and in 2020, the highest amount was reached (4).
+
+#### Chart
+
+```{r police_chart, fig.width=7, fig.height=3}
+ df2 %>% 
+  filter(target_specific1 == "police" | target_specific2 == "police") %>% 
+  count(year) %>% 
+  ggplot(aes(x=year, y=n)) +
+  geom_col() +
+  theme_minimal() +
+  labs(title="Attacks against police since 2015", x="", y="incidents",
+       caption="Data: CSIS") 
+```
+
+#### Data
+
+```{r police_data, warning=F, message=F}
+df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target_specific1 == "police" | target_specific2 == "police") %>% 
+  count(year) %>% datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "police_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+
+### m. Religious places  {.tabset}
+
+#### Text
+
+```{r religious}
+relig <- df2 %>% 
+      filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(year>2014) %>% 
+  count(target) %>% 
+  mutate(percent=round(n/sum(n, na.rm=T)*100)) %>% 
+  filter(target=="Religious Institutions")
+
+```
+
+Since 2015, there have been `r pull(relig, n)` attacks on religious institutions (about `r pull(relig, percent)` percent)`. 
+
+The most frequent targets were 24 mosques as well as 15 synagogues and 15 Black churches.
+
+#### Chart
+
+```{r religious_chart, fig.width=7, fig.height=3}
+
+df2 %>% 
+  filter(year>2014) %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target=="Religious Institutions") %>% 
+  count(target_specific1) %>% 
+  filter(!is.na(target_specific1)) %>% 
+  ggplot(aes(x=n, y=target_specific1)) +
+  geom_col()+
+  theme_minimal()+
+  labs(title="Targets of religious institution attacks by right-wing extremism",
+       y="",x="", caption="Data: CSIS")
+
+
+```
+
+#### Data
+
+```{r religious_data}
+
+df2 %>% 
+  filter(year>2014) %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target=="Religious Institutions") %>% 
+  count(target_specific1) %>% 
+  filter(!is.na(target_specific1)) %>% datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "religious_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+ 
+
+### n. Planned Parenthood and clinics {.tabset}
+
+#### Text
+
+```{r pp}
+abor <- df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  #filter(year>2014) %>% 
+  count(target) %>% 
+  mutate(percent=round(n/sum(n, na.rm=T)*100))
+#target=="Abortion Related"
+```
+
+
+Since 1994, there have been `r abor %>% filter(target=="Abortion Related") %>% pull(n)` attacks on Planned Parenthood and abortion  (about `r abor %>% filter(target=="Abortion Related") %>% pull(percent)` percent). 
+
+
+
+#### Chart
+
+```{r pp_chart, fig.width=7, fig.height=3}
+  df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target=="Abortion Related") %>% 
+  #filter(year>2014) %>% 
+  group_by(year) %>%
+  summarize(incidents=n(), fatalities=sum(vict_killed, na.rm=T)) %>% 
+  pivot_longer(cols=2:3, names_to="type", values_to="values") %>% 
+  ggplot(aes(x=year, y=values)) +
+  geom_col() +
+  facet_wrap(~type) +
+  theme_minimal() +
+  labs(title="Fatalities and incidents against Planned Parenthood and womens' clinics",
+       x="", y="", caption="Data: CSIS")
+
+```
+
+#### Data
+
+```{r pp_data}
+df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target=="Abortion Related") %>% 
+  #filter(year>2014) %>% 
+  group_by(year) %>%
+  summarize(incidents=n(), fatalities=sum(vict_killed, na.rm=T)) %>%
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "pp_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+
+
+ 
+ 
+### o. Attacks on govt  or process {.tabset}
+
+#### Text
+
+```{r govt}
+govt <- df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target_specific1=="government" | target_specific2=="government") %>% 
+  summarize(incidents=n(), fatalities=sum(vict_killed, na.rm=T))
+
+#govt
+```
+
+Since 2015, there have been `r govt %>% pull(incidents)` attacks on government institutions or representatives and 1 death.
+
+Annually, these attaks have grown steadily culminating with the highest amount ever in a year in 2020 (15) followed by 10 in the first month of 2021.
+
+The insurrection at the nation's capitol was just one of those logged incidents.
+
+#### Chart
+
+```{r govt_chart, fig.width=7, fig.height=3}
+df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target_specific1=="government" | target_specific2=="government") %>% 
+  group_by(year) %>% 
+  summarize(incidents=n(), fatalities=sum(vict_killed, na.rm=T)) %>% 
+  ggplot(aes(x=year, y=incidents)) +
+  geom_col() +
+  theme_minimal() +
+  labs(title="Attacks against government institutions or representatives since 2015",
+       x="", y="", caption="Data: CSIS")
+```
+
+#### Data
+
+```{r govt_data}
+df2 %>% 
+    filter(tnt_orientation=="Violent Far-right") %>% 
+
+  filter(target_specific1=="government" | target_specific2=="government") %>% 
+  group_by(year) %>% 
+  summarize(incidents=n(), fatalities=sum(vict_killed, na.rm=T)) %>% 
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "govt_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+ 
+ 
+### p. Hometown of perps  {.tabset}
+
+In 2020, at least 11 attacks were outside of the perpatrator's hometown. That year was the second-highest since 2015. The most was in 2017 with 14 attacks. The annual average distance traveled by these perpetrators range from 20 to miles to 68 miles between 2015 and 2020. However in the first month of 2021, the average distance traveled by perpetrators was 143 miles.
+
+#### Text
+
+```{r hometown_perps, warning=F, message=F}
+distances <- read_csv("../../data/clean_data/distances.csv")
+distances%>% 
+     filter(!is.na(distance)) %>% 
+     mutate(further=case_when(
+         distance>0 ~ "further",
+         TRUE ~ "same place")) %>% 
+     count(year, further) %>% 
+  filter(further!="same place") %>% 
+  kable()
+```
+
+#### Chart
+
+```{r hometown_chart, fig.width=7, fig.height=3}
+distances %>% 
+  filter(!is.na(distance)) %>% 
+  filter(distance!=0) %>%
+  group_by(year) %>%  
+  summarize(miles=median(distance)) %>% 
+  kable()
+```
+
+#### Data
+
+```{r hometown_data, message=F, warning=F}
+distances %>% 
+  filter(!is.na(distance)) %>% 
+  filter(distance!=0) %>%
+  group_by(year) %>%  
+  summarize(miles=median(distance)) %>% 
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "hometown_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+
+ 
+### q. Social media {.tabset}
+
+#### Text
+
+```{r sm_perps}
+df2$sm <- ifelse(!is.na(df2$perp_social_media), 1, 0)
+
+#!is.na(perp_social_media)
+#perp_social_media!="unknown"
+```
+
+According to a review from the Post, mentions of perpetrators using social media have grown steadily since 2015 (with the exception of 2018). But the most by far was in 2020 when 24 incidents involved messaging on social media such as Facebook or an encrypted chat service. That's more than one out of five incidents of right wing violence in 2020.
+
+#### Chart
+
+```{r sm_chart, fig.width=7, fig.height=3, warning=F, message=F}
+df2 %>% 
+  filter(year>2014) %>% 
+  mutate(sm=case_when(
+    perp_social_media=="unclear" ~ 0,
+    TRUE ~ sm)) %>% 
+  group_by(year) %>% 
+  summarize(total=n(),
+            social_media=sum(sm, na.rm=T)) %>% 
+  mutate(percent=round(social_media/total*100,2)) %>% 
+  ggplot(aes(x=year, y=total)) +
+  geom_col() +
+  theme_minimal() +
+  labs(title="Social media was used by perpetrator", 
+       x="", y="", caption="Data: CSIS")
+```
+
+#### Data
+
+```{r sm_data}
+
+df2 %>% 
+  filter(year>2014) %>% 
+  mutate(sm=case_when(
+    perp_social_media=="unclear" ~ 0,
+    TRUE ~ sm)) %>% 
+  group_by(year) %>% 
+  summarize(total=n(),
+            social_media=sum(sm, na.rm=T)) %>% 
+  mutate(percent=round(social_media/total*100,2)) %>% 
+  datatable(     extensions = c("Buttons"),     options = list(       dom = 'Bfrtip',       buttons = list(         list(extend = "csv", text = "Download Table", filename = "sm_data",              exportOptions = list(                modifier = list(page = "all")              )))))
+```
+ 
+ 
+ 
+### r. Advanced analysis {.tabset}
+
+
+#### Text
+
+```{r advanced_perps, warning=F, message=F}
+# guns
+# social media
+# attacks by month
+monthly_guns <- read_csv("../../data/raw_data/monthly_national.csv") %>% 
+  filter(year >=2020) %>% 
+  mutate(type="gun sales estimate rate") %>% 
+  select(year, month, date, month, type, values=rate) %>% 
+  mutate(date=ymd(paste0(year, "/", month, "/1")))
+  
+social_media <- read_excel("../../data/raw_data/ncri_temporal_data.xlsx", sheet=1) %>% 
+  mutate(year=year(Date),
+         month=month(Date)) %>% 
+  group_by(year, month) %>% 
+  summarize(antifa_gab=sum(antifa_gab, na.rm=T),
+            all_lives_parler=sum(all_lives_parler, na.rm=T),
+            flatten=sum(Flatten, na.rm=T),
+            reopen=sum(Reopen, na.rm=T),
+            liberate=sum(Liberate, na.rm=T),
+            covid=sum(COVID, na.rm=T),
+            anti_blm=sum(anti_BLM, na.rm=T),
+            elex=sum(Elex, na.rm=T),
+            stopthesteal=sum(StoptheSteal, na.rm=T)) %>%
+  mutate(date=ymd(paste0(year, "/", month, "/1"))) %>% 
+  pivot_longer(cols=3:11, names_to="type", values_to="values") %>% 
+  select(-year)
+
+combined <- monthly_guns %>% rbind(social_media)
+
+  
+ideologies_condensed <- ideologies_month %>%
+  #pivot_longer(cols=2:3, names_to="type", values_to="values") %>% 
+  filter(year>2019) %>% 
+  mutate(date=ymd(paste0(year, "/", month, "/1"))) %>% 
+  mutate(category_combined=case_when(
+    extremism_type=="anti abortion" ~ "anti-abortion, anti-asian, anti-semitic, other",
+    extremism_type=="anti asian" ~ "anti-abortion, anti-asian, anti-semitic, other",
+    extremism_type=="anti semitic" ~ "anti-abortion, anti-asian, anti-semitic, other",
+    extremism_type=="other" ~ "anti-abortion, anti-asian, anti-semitic, other",
+    extremism_type=="anti government" ~ "anti-covid lockdown, anti-government, anti-police, conspiracy theorist",
+    extremism_type=="anti police" ~ "anti-covid lockdown, anti-government, anti-police, conspiracy theorist",
+    extremism_type=="anti covid lockdown" ~ "anti-covid lockdown, anti-government, anti-police, conspiracy theorist",
+    extremism_type=="incel" ~ "incel, racist, white supremacist",
+    extremism_type=="conspiracy theorist" ~ "anti-covid lockdown, anti-government, anti-police, conspiracy theorist",
+    extremism_type=="white supremacist" ~ "incel, racist, white supremacist",
+    extremism_type=="racist" ~ "incel, racist, white supremacist",
+    extremism_type=="anti blm" ~ "anti blm, anti left",
+    extremism_type=="anti left" ~ "anti blm, anti left",
+    TRUE ~ extremism_type)) %>% 
+  group_by(year, month, date, category_combined) %>% 
+  summarize(incidents=sum(incidents),
+            killed=sum(killed)) 
+
+#ideologies_condensed$category_combined <- reorder(ideologies_condensed$category_condensed, ideologies_condensed$incidents)
+#ideologies_condensed$category_combined <- factor(ideologies_condensed$category_condesed, levels=rev(levels(ideologies_condensed$category_combined)))
+
+```
+
+
+Monthly attacks in 2020 compared to gun sales and social media and social distancing metrics in that time frame 
+
+
+#### Chart 1
+
+```{r advanced_chart, fig.width=7, fig.height=3}
+
+ideologies_condensed %>% 
+  #ggplot(aes(x=date, y=incidents)) +
+  ggplot(aes(x=date, y=incidents, fill=category_combined)) +
+  geom_bar(stat="identity") +
+  #facet_wrap(~extremism_type, ncol=2) +
+  #facet_wrap(~category_combined, ncol=5) +
+  theme_minimal() +
+  labs(title="Monthly right-wing extremism incidents by type in 2020 and 2021",
+       y="", x="") 
+
+
+```
+
+#### Chart 2
+
+```{r advanced_data}
+combined %>% 
+  filter(date!=ymd("2021-02-01")) %>% 
+  ggplot(aes(x=date, y=values)) +
+  geom_col() +
+  facet_wrap(~type, ncol=3, scales="free_y") +
+  theme_minimal()
+```
+
+

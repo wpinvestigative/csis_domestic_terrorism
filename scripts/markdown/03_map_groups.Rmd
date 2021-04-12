@@ -1,0 +1,183 @@
+---
+title: "Annual violent right-wing attacks (5-year groupings)"
+author: Andrew Ba Tran
+output:
+  html_document:
+    code_folding: hide
+---
+
+
+```{r setup, warning=F, message=F}
+
+packages <- c("tidyverse", "sf", "readxl", "janitor",
+              "tidycensus", "viridis",  "lubridate",
+              "ggfx", "albersusa")
+
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())), repos = "http://cran.us.r-project.org")  
+}
+
+
+library(tidyverse)
+library(sf)
+library(readxl)
+library(janitor)
+library(tidycensus)
+library(viridis)
+library(lubridate)
+library(ggfx)
+library(albersusa)
+
+options(tigris_use_cache = TRUE, tigris_class = "sf")
+
+addUnits <- function(n) {
+  labels <- ifelse(n < 1000, n,  # less than thousands
+                   ifelse(n < 1e6, paste0(round(n/1e3), 'k'),  # in thousands
+                          ifelse(n < 1e9, paste0(round(n/1e6), 'M'),  # in millions
+                                 ifelse(n < 1e12, paste0(round(n/1e9), 'B'), # in billions
+                                        ifelse(n < 1e15, paste0(round(n/1e12), 'T'), # in trillions
+                                               'too big!'
+                                        )))))
+  return(labels)
+}
+
+# Questions ----
+
+# Request this raw data from CSIS
+#df2 <- read_excel("../../data/raw_data/CSIS_TNT_Terrorism_US_Jan94-Jan21_Mar2021.xlsx")
+
+
+df2 <- read_csv("../../data/clean_data/csis_wapo_domestic_terrorism.csv")
+
+df2 <- clean_names(df2)
+
+df2 <- df2 %>% 
+  rename(tnt_orientation=orientation_csis,
+         year=year_csis,
+         state=state_csis,
+         month=month_csis,
+         vict_killed=vict_killed_csis,
+         weapon=weapon_csis,
+         target=target_csis,
+         lat=lat_csis,
+         long=long_csis)
+```
+
+```{r download_county_poverty, warning=F, message=F}
+
+# set your census api key
+
+# census_api_key("YOUR API KEY GOES HERE")
+
+county_pov <- get_acs(geography = "county",
+                      variables = "B17001_002",
+                      summary_var = "B17001_001",
+                      geometry = TRUE,
+                      shift_geo = TRUE) %>% 
+  mutate(pctpov = 100 * (estimate/summary_est))
+
+right_spatial <- filter(df2, tnt_orientation=="Violent Far-right") %>% 
+  filter(!is.na(lat)) %>% 
+  st_as_sf(coords=c("long", "lat"), crs = "+proj=longlat") %>% 
+  st_transform(crs=st_crs(county_pov))
+
+right <- st_coordinates(right_spatial$geometry) %>% 
+  data.frame()
+colnames(right) <- c("long", "lat") 
+
+right_spatial <- cbind(right_spatial, right)
+#saveRDS(county_pov, "../../data/clean_data/county_pov.RDS")
+#saveRDS(right_spatial, "../../data/clean_data/right_spatial.RDS")
+```
+
+```{r county_pov_map1, warning=F, message=F, fig.width=9, fig.height=33, cache=TRUE}
+
+right_spatial_filtered <- right_spatial %>% 
+  filter(year!=1994) %>% 
+  mutate(year_group=case_when(
+    year >= 1995 & year <2000 ~ "1995-1999",
+    year >= 2000 & year <2005 ~ "2000-2004",
+    year >= 2005 & year <2010 ~ "2005-2009",
+    year >= 2010 & year <2015 ~ "2010-2014s",
+    year >= 2015 & year <2020 ~ "2015-2019",
+    year >= 2020 ~ "2020-2021",
+  )) %>% 
+  count(year_group, lat, long)
+  
+
+us_sf <- usa_sf("laea")
+
+us_sf  %>% 
+ggplot(aes()) +
+    darklyplot::theme_dark2()+
+
+  #geom_sf(aes(fill = pctpov), color=NA) +
+   geom_sf(fill = "grey", alpha=.8, color="#ffffff") +
+     with_inner_glow(
+       geom_sf(fill="black", color = "#ffffff"),
+     colour = 'red',
+     sigma = 4
+   )+ 
+  #geom_sf(fill = "white", color=NA) +
+    with_outer_glow(
+    with_inner_glow(geom_point(data=right_spatial_filtered,
+             aes(x=long, y=lat), size=right_spatial_filtered$n*2, color="gold"),
+      colour="white", sigma=2),
+    colour="gold", sigma=3,expand=1) +
+  coord_sf(datum=NA) +
+  facet_wrap(~year_group, ncol=1) +
+  labs(title = "Violent Far-right incidents over time",
+       subtitle = "",
+       caption = "Source: CSIS",
+       y="", x="") +
+  scale_fill_viridis(direction=-1)
+
+```
+
+### 2020 and 2021
+
+```{r county_pov_map2, warning=F, message=F, fig.width=9, fig.height=6, cache=TRUE}
+
+
+right_spatial_filtered <- right_spatial_filtered %>% 
+  filter(year_group=="2020-2021")
+
+protests_counties <- read_csv("../../data/clean_data/protests_counties_2020.csv")
+
+county_pov <- left_join(county_pov, protests_counties)
+
+
+st_list <- protests_counties %>% 
+  filter(!is.na(attendance_racial_just)) %>% 
+  select(GEOID) %>% 
+  pull(GEOID)
+
+paint_map <- function(st="CA",mycolor="red"){
+  with_inner_glow(geom_sf(fill = "white",
+                          data= .%>% filter(GEOID==st),
+                          color = "#ffffff"),
+                  colour=mycolor,sigma=5)
+}
+
+county_pov  %>% 
+ggplot(aes()) +
+    darklyplot::theme_dark2()+
+  #geom_sf(aes(fill = pctpov), color=NA) +
+   geom_sf(fill = NA, alpha=.8, color="#ffffff") +
+   geom_sf(aes(fill=protests_racial_just)) +
+   #geom_sf(aes(fill=protests_right_wing)) +
+   #geom_sf(aes(fill=attendance_racial_just)) +
+  geom_sf(data=us_sf,fill=NA, color="black") +
+  #geom_sf(fill = "white", color=NA) +
+   geom_point(data=right_spatial_filtered,
+             aes(x=long, y=lat), size=right_spatial_filtered$n*2, color="red") +
+  coord_sf(datum=NA) +
+  #facet_wrap(~year_group, ncol=1) +
+  labs(title = "Violent Far-right incidents in 2020 and 2021",
+       subtitle = "Compared to number of racial justice protests",
+       caption = "Source: CSIS, CountLove",
+       y="", x="") +
+  scale_fill_viridis(direction=-1)
+  
+
+```

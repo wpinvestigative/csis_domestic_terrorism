@@ -1,0 +1,267 @@
+---
+title: "Right-wing domestic terrorism incidents since 2015"
+author: "Andrew Ba Tran"
+date: "3/31/2021"
+output:
+  flexdashboard::flex_dashboard:
+    theme: paper
+    source_code: embed
+---
+
+
+```{r setup, include=FALSE}
+# setting up R Markdown options
+
+# We want to hide the code and only see the results
+knitr::opts_chunk$set(echo = F)
+
+# We don't want to see any warnings from our code
+knitr::opts_chunk$set(warning = F)
+
+# We don't want to see any messages
+knitr::opts_chunk$set(message = F)
+```
+
+```{r install_packages}
+# You must have the flexdashboard package installed
+# Before knitting this R Markdown file
+# install.packages("flexdashboard")
+
+# This function checks if you don't have the correct packages installed yet
+# If not, it will install it for you
+packages <- c("tidyverse", "flexdashboard", "janitor", "lubridate",
+              "crosstalk", "leaflet", "DT")
+
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())), repos = "http://cran.us.r-project.org")  
+}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(flexdashboard)
+library(crosstalk)  
+library(leaflet)   
+library(DT) 
+```
+
+```{r load_and_clean_data}
+
+
+pg.green.0 <- "#00b6bd"
+pg.green.1 <- "#77cdd5"
+pg.green.2 <- "#b4e1e4"
+pg.green.3 <- "#d5edef"
+
+pg.blue.0 <- "#006f91"
+pg.blue.1 <- "#7caec6"
+pg.blue.2 <- "#b4d5e5"
+pg.blue.3 <- "#d5e7f0"
+
+
+
+sheet <- read_csv("../../data/clean_data/csis_wapo_domestic_terrorism.csv")
+
+sheet <- clean_names(sheet)
+
+sheet<- sheet %>% 
+  rename(tnt_orientation=orientation_csis,
+         year=year_csis,
+         state=state_csis,
+         city=city_csis,
+         month=month_csis,
+         day=day_csis,
+         vict_killed=vict_killed_csis,
+         weapon=weapon_csis,
+         target=target_csis,
+         lat=lat_csis,
+         long=long_csis,
+         target_category=victim_category,
+         target_specific1=victim_specific1,
+         target_specific2=victim_specific2,
+         mil_status=mil_status_csis,
+         le_status=le_status_csis,
+         perp_social_media=susp_social_media_use) %>%
+  mutate(date=mdy(paste0(month, "/", day, "/", year))) %>% 
+  arrange(desc(date))
+
+sheet <- sheet %>% 
+  filter(tnt_orientation=="Violent Far-right") %>% 
+  filter(year>2014) %>% 
+  mutate(popup=paste0(
+    "<strong>", ifelse(!is.na(city), paste0(city, ", "), ""), state, "</strong>: ", date, "<br />",
+    "Target: ", paste0(target_category, " - ", target_specific1), ifelse(!is.na(target_specific2), 
+                                                        paste0(" | ", target_specific2, "<br />"), "<br />"),
+    ifelse(!is.na(vict_killed), paste0("Fatalities: ", vict_killed, "<br />"),  ""),
+    "Type: ", type_extremism_1, ifelse(!is.na(type_extremism_2), paste0(" | ", type_extremism_2, "<br />"), "<br />"),
+    "Weapon: ", weapon)) 
+
+
+st <- SharedData$new(sheet)
+```
+
+Violent far-right {data-icon="ion-stats-bars"}
+=====================================  
+
+Column {data-width=200}
+-------------------------------------
+
+### Filters
+
+```{r filter_section}
+# filter by state
+# filter by city
+# filter by ratio
+# filter by 
+
+filter_select(
+  id = "state",
+  label = "State",
+  sharedData = st,
+  group = ~state
+)
+filter_select(
+    id = "target_category",
+    label = "Target type",
+    sharedData = st,
+    group = ~target_category
+  )
+#filter_checkbox(
+#    id = "standard_flag",
+#    label = "Weekly flag",
+#    sharedData = st,
+#    group = ~standard_flag
+#)
+filter_slider(
+    id = "year",
+    label = "Year range",
+    sharedData = st,
+    column = ~year,
+    ticks = TRUE,
+    sep=""
+  )
+filter_slider(
+    id = "vict_killed",
+    label = "Fatalities",
+    sharedData = st,
+    column = ~vict_killed,
+    ticks = TRUE
+  )
+#filter_slider(
+#    id = "percent diff",
+#    label = "Percent difference between March 28, 2020 and 2019",
+#    sharedData = st,
+#    column = ~`percent diff`,
+#    round = TRUE,
+#    sep = ",",
+#    ticks = TRUE
+#  )
+
+```
+
+
+**Methodology:**
+
+Data from CSIS but enhanced by Washington Post reporting.
+
+**Caveats:**
+
+* Points are generalized to town level and not exact location.
+
+**Future features:**
+
+* More filters
+
+
+
+
+
+Column {data-width=800}
+-------------------------------------
+
+
+### Interactive map
+
+```{r interactive_map}
+# map! 
+
+pg.muted.red <- "#A56A6B"
+pg.muted.orange <- "#AF7852"
+pg.muted.yellow <- "#BBA135"
+pg.muted.green <- "#6F917B"
+pg.muted.blue <- "#6796B0"
+pg.muted.purple <- "#835B89"
+
+pall <- colorFactor(c(pg.muted.orange,pg.blue.0), domain=c("Violent Far-left", "Violent Far-right"))
+
+ 
+st %>% 
+  leaflet() %>% 
+  addProviderTiles(providers$CartoDB.DarkMatter) %>% 
+  setView(-98.245434, 39.251639, zoom = 4) %>% 
+  addCircleMarkers(~long, ~lat, 
+                   popup=sheet$popup,
+                   weight = 2,
+                   radius = 3, 
+                   stroke = F, 
+                   fillOpacity = 0.7,
+                   color=~pall(tnt_orientation)) 
+
+```
+
+### Datatable
+
+```{r filterable_table}
+# Customize how you want the datatable to look
+# Line 104 for context
+
+st %>% 
+  #select(contacted, status, addressLine1, city, province, phoneNumber) %>% 
+  DT::datatable(
+    filter = "top",  # allows filtering on each column
+    extensions = c(
+      "Buttons",  # add download buttons, etc
+      "Scroller"  # for scrolling down the rows rather than pagination
+    ),
+    rownames = FALSE,  # remove rownames
+    style = "bootstrap",
+    class = "compact",
+    width = "100%",
+    options = list(
+      dom = "Blrtip",  # specify content (search box, etc)
+      deferRender = TRUE,
+      scrollY = 300,
+      scroller = TRUE,
+      columnDefs = list(
+        list(
+          visible = FALSE,
+          targets = c(1,2,3,5,6,7,8,9, 10,11,12,19, 20, 22)
+          #targets = c(6, 9, 12, 14, 15, 16, 24, 28, 32, 33, 37, 38, 39)
+        )
+      ), 
+      buttons = list(
+        I("colvis"),  # turn columns on and off
+        "csv",  # download as .csv
+        "excel"  # download as .xlsx
+      )
+    ),
+    colnames = c(
+      "Year" = "year",
+      "Date" = "date",
+      #"State" = "state",
+      "City" = "city",
+      #"Social media" = "perp_social_media",
+      "Suspects" = "susp_total",
+      "extremism type 1" = "type_extremism_1",
+      "extremism type 2" = "type_extremism_2",
+      "extremism type 2" = "type_extremism_2",
+      "victim category" = "target_category",
+      "victim specific 1"="target_specific1",
+      "victim specific 2"="target_specific2"#,
+      #"Law enforcement" = "le_status",
+      #"Military" = "mil_status"
+    )
+    
+  )
+
+
+```
