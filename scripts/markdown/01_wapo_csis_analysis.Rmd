@@ -158,7 +158,7 @@ df_summary %>%
   ggplot(aes(x=year, y=vict_killed, fill=Group)) +
   geom_bar(position="stack", stat="identity") +
   theme_minimal() +
-  labs(x="", title="Percent of fatalities killed by year", 
+  labs(x="", title="Fatalities by year", 
        subtitle="2,977 fatalities from 9/11 excluded from chart for scale",
        caption="Data: CSIS")
 ```
