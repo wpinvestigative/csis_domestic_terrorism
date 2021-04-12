@@ -60,7 +60,7 @@ For example, the extended review enabled the The Post to determine that at least
 
 # Notebooks
 
-* [Summary findings of CSIS data analysis](http://wpinvestigative.github.io/csis_domestic_terrorism/output/docs/01_wapo_csis_analysis.html) - Analysis of CSIS data that was used in the story.
+* [Summary findings of CSIS data analysis](http://wpinvestigative.github.io/csis_domestic_terrorism/output/docs/01_wapo_csis_analysis) - Analysis of CSIS data that was used in the story.
 * [Deeper analysis of CSIS data](http://wpinvestigative.github.io/csis_domestic_terrorism/output/docs/02_more_analysis.html) - Analysis of many more factors within the data.
 * [Static maps](http://wpinvestigative.github.io/csis_domestic_terrorism/output/docs/03_map_groups.html) - Maps of where right-wing domestic terrorism incidents occurred since 1994.
 * [Exploratory map](http://wpinvestigative.github.io/csis_domestic_terrorism/output/docs/04_exploratory_map.html) - Exploratory map and table dashboard of right-wing plots and incidents since 2015.
