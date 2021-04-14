@@ -10,7 +10,7 @@ The Washington Post is making public the data used in the story **[Domestic terr
 
 The database includes 980 incidents since 1994 that met CSIS’s definition of terrorism: an attack or plot involving a deliberate use or threat of violence to achieve political goals, create a broad psychological impact or change government policy.
 
-hat definition excludes many violent events, including incidents during nationwide unrest last year, because CSIS analysts could not determine whether attackers had a political or ideological motive.
+That definition excludes many violent events, including incidents during nationwide unrest last year, because CSIS analysts could not determine whether attackers had a political or ideological motive.
 
 Incidents do not have to be adjudicated in the court system to be included. Dozens of incidents have no identified perpetrator, but details about the attacks - including evidence of motive and the target - led to the case being included in the database.
 
